@@ -7,6 +7,7 @@ from torch import embedding
 from models.movie import Movie
 import os
 from services.utils import load_movies, load_stopwords
+from services.hash import NUM_BUCKETS, hash_vec
 
 VECTOR_STORE_NPY_FILE = "cache/movie_embeddings.npy"
 
@@ -76,7 +77,15 @@ class SemanticSearch():
         self.model = SentenceTransformer(model, device="cpu")
         self.embeddings = None
         self.documents = None
+        self.embedding_buckets: list[list[tuple]] = [[] for _ in range(NUM_BUCKETS)]
         self.document_map = {}
+
+    def _save_embedding_buckets(self, embeddings: list, movies: list[Movie]):
+        if embeddings is None:
+            raise ValueError("embeddings must have values to put into buckets")
+        
+        for emb, movie in zip(embeddings, movies):
+            self.embedding_buckets[hash_vec(emb)].append((emb, movie))
 
 
     def generate_embedding(self, text: str):
@@ -95,6 +104,8 @@ class SemanticSearch():
             doc_strings.append(f"{doc.title}: {doc.description}")
 
         self.embeddings = self.model.encode(doc_strings, show_progress_bar=True)
+        self._save_embedding_buckets(self.embeddings)
+
         np.save(VECTOR_STORE_NPY_FILE, self.embeddings)
 
         return self.embeddings
@@ -107,6 +118,7 @@ class SemanticSearch():
         if os.path.exists(VECTOR_STORE_NPY_FILE):
             self.embeddings = np.load(VECTOR_STORE_NPY_FILE)
             if len(self.embeddings) == len(documents):
+                self._save_embedding_buckets(self.embeddings)
                 return self.embeddings
             
         return self.build_embeddings(documents)
@@ -118,7 +130,7 @@ class SemanticSearch():
         query_vec = self.generate_embedding(query)
         cos_similarities: list[tuple[float, Movie]] = []
 
-        for doc_vec, doc in zip(self.embeddings, self.documents):
+        for doc_vec, doc in self.embedding_buckets[hash_vec(query_vec)]:
             similarity = cosine_similarity(doc_vec, query_vec)
             cos_similarities.append((similarity, doc))
 
