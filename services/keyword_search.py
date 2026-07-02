@@ -2,30 +2,12 @@ import json
 import string
 from models.movie import Movie
 from nltk.stem import PorterStemmer
-
-MOVIES_JSON_FILE = "/Users/home/Documents/Projects/bootdev/rag/rag-search-engine/data/movies.json"
-STOPWORDS_TXT_FILE = "/Users/home/Documents/Projects/bootdev/rag/rag-search-engine/data/stopwords.txt"
-_REMOVE_PUNC_TABLE = str.maketrans("", "", string.punctuation)
+from utils import load_movies, load_stopwords, remove_punc
 
 
-
-def remove_punc(s: str) -> str:
-    return s.translate(_REMOVE_PUNC_TABLE)
-
-
-def load_movies(file: str = MOVIES_JSON_FILE) -> list[Movie]:
-    raw = json.loads(open(file).read())["movies"]
-    return [Movie(**m) for m in raw]
-
-
-def load_stopwords(file: str = STOPWORDS_TXT_FILE) -> set[str]:
-    with open(file) as f:
-        return {remove_punc(w) for w in f.read().splitlines()}
-
-
-movies = load_movies(MOVIES_JSON_FILE)
-stopwords = load_stopwords(STOPWORDS_TXT_FILE)
 stemmer = PorterStemmer()
+movies = load_movies()
+stopwords = load_stopwords()
 
 def tokenize(text: str, stopwords: set[str] = stopwords, stemmer: PorterStemmer = stemmer) -> list[str]:
     tokens = [w for w in remove_punc(text.lower()).split() if w not in stopwords]
