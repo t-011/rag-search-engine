@@ -104,7 +104,7 @@ class SemanticSearch():
             doc_strings.append(f"{doc.title}: {doc.description}")
 
         self.embeddings = self.model.encode(doc_strings, show_progress_bar=True)
-        self._save_embedding_buckets(self.embeddings)
+        self._save_embedding_buckets(self.embeddings, documents)
 
         np.save(VECTOR_STORE_NPY_FILE, self.embeddings)
 
@@ -118,7 +118,7 @@ class SemanticSearch():
         if os.path.exists(VECTOR_STORE_NPY_FILE):
             self.embeddings = np.load(VECTOR_STORE_NPY_FILE)
             if len(self.embeddings) == len(documents):
-                self._save_embedding_buckets(self.embeddings)
+                self._save_embedding_buckets(self.embeddings, documents)
                 return self.embeddings
             
         return self.build_embeddings(documents)
