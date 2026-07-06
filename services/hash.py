@@ -4,5 +4,6 @@ import numpy as np
 NUM_BUCKETS = 10
 
 def hash_vec(vec: np.ndarray) -> int:
-    return int(sum(vec) % NUM_BUCKETS)
+    direction = vec / np.linalg.norm(vec)
+    return int(sum(direction) % NUM_BUCKETS)
 
