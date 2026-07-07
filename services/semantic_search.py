@@ -3,7 +3,7 @@ from typing import List
 from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
 import numpy as np
-from torch import embedding
+from torch import cosine_embedding_loss, embedding
 from models.movie import Movie
 import os
 from services.utils import load_movies, load_stopwords
@@ -160,7 +160,7 @@ def semantic_chunking(text: str, max_chunk_size: int = 4, overlap: int = 0):
 class ChunkedSemanticSearch(SemanticSearch):
     def __init__(self, model_name: str = "all-MiniLM-L6-v2") -> None:
         super().__init__(model_name)
-        self.chunk_embeddings = None
+        self.chunk_embeddings: list = []
         self.chunk_metadata = None
 
     def build_chunk_embeddings(self, documents: list[Movie]) -> np.ndarray:
@@ -201,6 +201,13 @@ class ChunkedSemanticSearch(SemanticSearch):
             return np.asarray(self.chunk_embeddings)
         
         return self.build_chunk_embeddings(documents)
+    
+    def search_chunks(self, query: str, limit: int = 10):
+        query_emb = np.ndarray(self.generate_embedding(query))
+        chunk_scores = []
+        for chunk_emb in self.chunk_embeddings:
+            score = cosine_similarity(query_emb, chunk_emb)
+            chunk_scores.append({})
     
 
 
