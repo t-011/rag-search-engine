@@ -1,15 +1,13 @@
 from dataclasses import dataclass
 from typing import List
-from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
 import numpy as np
-from torch import cosine_embedding_loss, embedding
 from models.movie import Movie
 import os
-from services.utils import load_movies, load_stopwords
-from services.hash import NUM_BUCKETS, hash_vec
+from services.utils import load_movies
 import re, json
 
+CACHE_DIR = "cache"
 VECTOR_STORE_NPY_FILE = "cache/movie_embeddings.npy"
 
 @dataclass
@@ -78,15 +76,7 @@ class SemanticSearch():
         self.model = SentenceTransformer(model, device="cpu")
         self.embeddings = None
         self.documents = None
-        self.embedding_buckets: list[list[tuple]] = [[] for _ in range(NUM_BUCKETS)]
         self.document_map = {}
-
-    def _save_embedding_buckets(self, embeddings: list, movies: list[Movie]):
-        if embeddings is None:
-            raise ValueError("embeddings must have values to put into buckets")
-        
-        for emb, movie in zip(embeddings, movies):
-            self.embedding_buckets[hash_vec(emb)].append((emb, movie))
 
 
     def generate_embedding(self, text: str):
@@ -105,8 +95,7 @@ class SemanticSearch():
             doc_strings.append(f"{doc.title}: {doc.description}")
 
         self.embeddings = self.model.encode(doc_strings, show_progress_bar=True)
-        self._save_embedding_buckets(self.embeddings, documents)
-
+        os.makedirs(CACHE_DIR, exist_ok=True)
         np.save(VECTOR_STORE_NPY_FILE, self.embeddings)
 
         return self.embeddings
@@ -119,7 +108,6 @@ class SemanticSearch():
         if os.path.exists(VECTOR_STORE_NPY_FILE):
             self.embeddings = np.load(VECTOR_STORE_NPY_FILE)
             if len(self.embeddings) == len(documents):
-                self._save_embedding_buckets(self.embeddings, documents)
                 return self.embeddings
             
         return self.build_embeddings(documents)
@@ -131,7 +119,7 @@ class SemanticSearch():
         query_vec = self.generate_embedding(query)
         cos_similarities: list[tuple[float, Movie]] = []
 
-        for doc_vec, doc in self.embedding_buckets[hash_vec(query_vec)]:
+        for doc_vec, doc in zip(self.embeddings, self.documents):
             similarity = cosine_similarity(doc_vec, query_vec)
             cos_similarities.append((similarity, doc))
 
@@ -182,6 +170,7 @@ class ChunkedSemanticSearch(SemanticSearch):
         self.chunk_embeddings = self.model.encode(chunks)
         self.chunk_metadata = chunk_metadata
 
+        os.makedirs(CACHE_DIR, exist_ok=True)
         np.save(CHUNK_EMBEDDINGS_CACHE_NPY, self.chunk_embeddings)
         with open(CHUNK_METADATA_JSON, "w") as f:
             json.dump({"chunks": self.chunk_metadata, "total_chunks": len(chunks)}, f, indent=2)
