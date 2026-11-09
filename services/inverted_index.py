@@ -1,6 +1,5 @@
 from collections import Counter
 import pickle, math
-from pydoc import doc
 
 from services.keyword_search import tokenize, load_movies
 from models.movie import Movie
@@ -8,7 +7,7 @@ from pydantic import BaseModel
 import os
 
 CACHE_DIR = "cache"
-INDEX_PKL_FILE = "cache/index.pkl" # perspective of root
+INDEX_PKL_FILE = "cache/index.pkl" # relative to repo root
 DOCMAP_PKL_FILE = "cache/docmap.pkl"
 TERMFREQ_PKL_FILE = "cache/term_frequencies.pkl"
 DOCLENGTHS_PKL_FILE = "cache/doc_lengths.pkl"
@@ -83,7 +82,9 @@ class InvertedIndex(BaseModel):
 
 
     
-    def build(self, docs: list[Movie] = load_movies()):
+    def build(self, docs: list[Movie] | None = None):
+        if docs is None:
+            docs = load_movies()
         for movie in docs:
             self.__add_document(movie.id, f"{movie.title} {movie.description}")
             self.docmap[movie.id] = movie
@@ -111,7 +112,8 @@ class InvertedIndex(BaseModel):
              docmap_file:str = DOCMAP_PKL_FILE,
              term_freq_file: str = TERMFREQ_PKL_FILE,
              doc_lengths_file: str = DOCLENGTHS_PKL_FILE):
-        
+        os.makedirs(CACHE_DIR, exist_ok=True)
+
         with open(index_file, "wb") as f:
             pickle.dump(self.index, f)
         

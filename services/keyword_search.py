@@ -1,8 +1,6 @@
-import json
-import string
 from models.movie import Movie
 from nltk.stem import PorterStemmer
-from utils import load_movies, load_stopwords, remove_punc
+from services.utils import load_movies, load_stopwords, remove_punc
 
 
 stemmer = PorterStemmer()
@@ -37,6 +35,3 @@ def search_by_title(
 def keyword_search(title: str) -> list[Movie]:
     return search_by_title(title)
 
-
-if __name__ == "__main__":
-    pass
